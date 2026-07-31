@@ -45,10 +45,10 @@ A ticket is **unblocked** when every issue named in that section is closed. Two 
 
 ## Project board
 
-Issues mirror to GitHub Project **#5** (`https://github.com/users/wagnersza/projects/5`). The labels are the source of truth; the board reflects them. A brand-new issue is not added to the board automatically — add it, then set its status:
+The labels are the source of truth. Optionally mirror issues to a GitHub Project board; a brand-new issue is not added automatically — add it, then set its status:
 
 ```bash
-gh project item-add 5 --owner wagnersza --url "https://github.com/wagnersza/bitnote/issues/<N>"
+gh project item-add <board-number> --owner <owner> --url "$(gh issue view <N> --json url -q .url)"
 ```
 
 Status field values map to the work-state labels: `ready-for-agent` → Ready, `in-progress` → In progress, `to-review` → In review, `done` → Done.
