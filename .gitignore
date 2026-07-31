@@ -1,0 +1,13 @@
+.build/
+.swiftpm/
+Bitnote.app/
+Bitnote-dev.app/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+.DS_Store
+*.dmg
+.vscode/
+.orchestrator/
+docs/review/
+.privacy_patterns

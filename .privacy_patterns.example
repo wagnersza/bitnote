@@ -1,0 +1,6 @@
+# One pattern per line, literal substring match (no regex).
+# Lines starting with # are comments and blank lines are skipped.
+# Copy this file to .privacy_patterns (gitignored) and fill in real values:
+#   employer name, corporate email domain, personal email domain, etc.
+ACME_CORP
+@corp.example.com
