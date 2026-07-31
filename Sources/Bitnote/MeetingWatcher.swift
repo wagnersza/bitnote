@@ -200,6 +200,7 @@ final class MeetingWatcher: ObservableObject {
         let url = recs.newRecordingURL(title: meeting.title)
         do {
             try await engine.startRecording(to: url)
+            recordingDidStart()
             autoRecordingTitle = meeting.title
             autoRecordingMeetingID = meeting.id
             refreshToday()
@@ -306,6 +307,9 @@ final class MeetingWatcher: ObservableObject {
     func stopAndSaveRecording() async {
         guard let engine = audioEngine, engine.isRecording else { return }
         await engine.stopRecording()
+        // Disarmed here, on the one stop path both a Manual stop and a limit stop go through, so no
+        // recording can leave its limit loop or its prompt row behind.
+        endLimit()
         if let url = engine.outputURL {
             recordings?.addRecording(at: url)
         }

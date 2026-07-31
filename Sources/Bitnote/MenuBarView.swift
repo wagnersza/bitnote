@@ -160,6 +160,7 @@ struct MenuBarView: View {
             Task {
                 do {
                     try await audioEngine.startRecording(to: url, deviceUID: deviceUID)
+                    meetingWatcher.recordingDidStart()
                     recordingError = nil
                 } catch {
                     recordingError = error.localizedDescription

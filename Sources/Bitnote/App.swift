@@ -32,11 +32,7 @@ struct BitNoteApp: App {
                     notifDelegate.watcher = meetingWatcher
                 }
                 .onChange(of: audioEngine.isRecording) { isRecording in
-                    // One hook for both start paths (menu button and Auto-start), so the Recording
-                    // Limit arms and disarms exactly once per recording.
-                    if isRecording {
-                        meetingWatcher.recordingDidStart()
-                    } else {
+                    if !isRecording {
                         meetingWatcher.recordingDidStop()
                     }
                 }
