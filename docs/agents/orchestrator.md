@@ -17,7 +17,7 @@ review:
   rounds:  3              # max fix<->review cycles before handing to human review
 
 # --- repo + tracker ---
-repo:     ~/git/bitnote               # the main checkout; stays on `main`
+repo:     ~/git/bitnote-public       # the main checkout; stays on `main`
 tracker:  # read from docs/agents/issue-tracker.md; do NOT redefine labels here
 
 # --- project recipe (the completion contract's project-specific parts) ---
