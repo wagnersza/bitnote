@@ -4,10 +4,18 @@ import BitnoteCore
 import MeetingDetector
 import UserNotifications
 
+/// What the menu row renders while a Keep-recording prompt is active. Both strings come from the
+/// pure limit helpers, so the row, the notification, and the accessibility label never drift apart.
+struct RecordingLimitPrompt: Equatable {
+    let reason: String
+    let countdown: String
+}
+
 @MainActor
 final class MeetingWatcher: ObservableObject {
     @Published var autoRecordingTitle: String? = nil
     @Published var autoRecordingMeetingID: String? = nil
+    @Published var limitPrompt: RecordingLimitPrompt? = nil
     @Published var availableCalendars: [EKCalendar] = []
     @Published var hasCalendarAccess: Bool = false
     @Published var todayState: TodaySectionState = .noCalendarAccess
@@ -23,6 +31,12 @@ final class MeetingWatcher: ObservableObject {
     private let store = EKEventStore()
     private var pollTask: Task<Void, Never>?
     private var notifiedIDs: Set<String> = []
+
+    /// The Recording Limit lives here because this type already holds the `audioEngine` and
+    /// `recordings` references the tick needs. All its timing decisions come from `BitnoteCore`.
+    private var limitState: RecordingLimitState?
+    private var limitTask: Task<Void, Never>?
+    private static let limitNotificationID = "recording-limit"
 
     private weak var audioEngine: AudioEngineManager?
     private weak var recordings: RecordingsManager?
@@ -196,11 +210,93 @@ final class MeetingWatcher: ObservableObject {
     }
 
     func recordingDidStop() {
+        endLimit()
         if autoRecordingTitle != nil {
             autoRecordingTitle = nil
             autoRecordingMeetingID = nil
             refreshToday()
         }
+    }
+
+    // MARK: - Recording Limit
+
+    /// Arms the Recording Limit. Called for every recording, whether the user started it or Auto-start
+    /// did, so there is one rule. `meetingEnd` is always nil here; #7 supplies the meeting anchor.
+    func recordingDidStart() {
+        limitState = recordingLimitStart(meetingEnd: nil, now: Date())
+        limitPrompt = nil
+        startLimitLoop()
+    }
+
+    /// The user clicked **Keep recording**, in the menu row or on the notification banner.
+    /// A click that arrives with no active prompt is a no-op: `recordingLimitKeep` returns the same state.
+    func keepRecording() {
+        guard let state = limitState else { return }
+        limitState = recordingLimitKeep(state, now: Date())
+        limitPrompt = nil
+        removeLimitNotification()
+    }
+
+    /// The calendar Poll's 60-second period is too coarse for a countdown that must update each
+    /// second, so the limit gets its own loop, and it exists only while a recording runs.
+    private func startLimitLoop() {
+        limitTask?.cancel()
+        limitTask = Task {
+            while !Task.isCancelled {
+                await tickLimit()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    private func tickLimit() async {
+        guard let state = limitState else { return }
+        let now = Date()
+        let (next, action) = recordingLimitTick(state, now: now)
+        limitState = next
+
+        switch action {
+        case .none:
+            break
+        case .showPrompt:
+            postLimitNotification(reason: recordingLimitPromptReason(next))
+        case .stopRecording:
+            await stopAndSaveRecording()
+            return
+        }
+
+        limitPrompt = recordingLimitCountdown(next, now: now).map {
+            RecordingLimitPrompt(reason: recordingLimitPromptReason(next).text, countdown: $0)
+        }
+    }
+
+    private func endLimit() {
+        limitTask?.cancel()
+        limitTask = nil
+        limitState = nil
+        limitPrompt = nil
+        removeLimitNotification()
+    }
+
+    private func postLimitNotification(reason: RecordingLimitReason) {
+        let content = UNMutableNotificationContent()
+        content.title = "Keep recording?"
+        content.body = "\(reason.text) Bitnote stops and saves this recording in 1 minute."
+        content.sound = .default
+        content.categoryIdentifier = "RECORDING_LIMIT"
+
+        let request = UNNotificationRequest(
+            identifier: Self.limitNotificationID,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Clears the banner when the round ends, by keep or by stop, so a stale banner cannot be actioned.
+    private func removeLimitNotification() {
+        UNUserNotificationCenter.current()
+            .removeDeliveredNotifications(withIdentifiers: [Self.limitNotificationID])
     }
 
     /// Stops the active recording and adds the saved file to the recordings list.
@@ -231,6 +327,19 @@ extension MeetingWatcher {
             intentIdentifiers: [],
             options: []
         )
-        UNUserNotificationCenter.current().setNotificationCategories([category])
+
+        let keep = UNNotificationAction(
+            identifier: "KEEP_RECORDING",
+            title: "Keep recording",
+            options: []
+        )
+        let limitCategory = UNNotificationCategory(
+            identifier: "RECORDING_LIMIT",
+            actions: [keep],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        UNUserNotificationCenter.current().setNotificationCategories([category, limitCategory])
     }
 }

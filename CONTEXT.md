@@ -17,8 +17,20 @@ Bitnote posting a start notification and beginning recording on its own when a M
 _Avoid_: Auto-record (recording is the manual/existing action; auto-start is the trigger)
 
 **Manual stop**:
-The user ending a recording from the menu. Bitnote never stops a recording on its own — there is no auto-stop.
+The user ending a recording from the menu. A Manual stop is always available, at any moment, including while a Keep-recording prompt is on screen. A **limit stop** is the one other way a recording ends.
 _Avoid_: Auto-stop
+
+**Recording Limit**:
+The absolute time at which Bitnote asks the user whether a recording must continue. Every recording has one. A recording with no Meeting Event gets 30 minutes, then 30 minutes again, then 15 minutes for every later round. Bitnote sets the next limit each time the user answers, so a recording can never run without one.
+_Avoid_: Timeout, max duration
+
+**Keep-recording prompt**:
+The question Bitnote asks when a Recording Limit arrives, on two surfaces at once: a system notification carrying a **Keep recording** action, and a row in the Bitnote menu with a live countdown. The user clicks **Keep recording** on either one and the recording continues.
+_Avoid_: Warning, alert
+
+**Grace period**:
+The 60 seconds the user has to answer a Keep-recording prompt, measured from the moment the prompt appeared, never from the limit. Nobody answers, and Bitnote does a limit stop: it stops the recording and saves the file, exactly as a Manual stop does. Because the count starts at the prompt, a computer that woke from a long sleep asks the user and gives the full minute instead of stopping at once.
+_Avoid_: Timeout window, countdown
 
 **Poll**:
 The ~60s timer sweep that queries EventKit for Meeting Events about to start.

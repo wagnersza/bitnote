@@ -80,6 +80,10 @@ struct MenuBarView: View {
                 .padding(.top, 8)
             }
 
+            if let prompt = meetingWatcher.limitPrompt {
+                limitPromptRow(prompt)
+            }
+
             Button(action: toggleRecording) {
                 HStack {
                     Image(systemName: audioEngine.isRecording ? "stop.circle.fill" : "record.circle")
@@ -116,6 +120,31 @@ struct MenuBarView: View {
             }
             Spacer().frame(height: 8)
         }
+    }
+
+    /// The Keep-recording prompt's second surface: the only one that still works when macOS
+    /// notifications are denied or Do Not Disturb hides the banner.
+    private func limitPromptRow(_ prompt: RecordingLimitPrompt) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+            Text(prompt.reason)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            Text(prompt.countdown)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(.orange)
+            Spacer()
+            Button("Keep recording") { meetingWatcher.keepRecording() }
+                .font(.caption)
+                .buttonStyle(.borderless)
+                .foregroundColor(.accentColor)
+                .accessibilityLabel("Keep recording, \(prompt.countdown) left")
+        }
+        .padding(.horizontal, 12)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(prompt.reason) Bitnote stops this recording in \(prompt.countdown).")
     }
 
     private func toggleRecording() {
