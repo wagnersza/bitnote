@@ -29,6 +29,7 @@ struct BitNoteApp: App {
                 .onAppear {
                     meetingWatcher.start(audioEngine: audioEngine, recordings: recordings)
                     meetingWatcher.refreshToday()
+                    notifDelegate.watcher = meetingWatcher
                 }
                 .onChange(of: audioEngine.isRecording) { isRecording in
                     if !isRecording {
@@ -48,14 +49,26 @@ struct BitNoteApp: App {
     }
 }
 
-// MARK: - Notification delegate handles Cancel action
+// MARK: - Notification delegate handles Cancel and Keep recording actions
 
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    /// The Keep-recording action must land inside the 60-second grace period, so it calls the watcher
+    /// directly rather than leaving a flag for the next Poll to read.
+    weak var watcher: MeetingWatcher?
+
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        if response.actionIdentifier == "KEEP_RECORDING" {
+            let watcher = self.watcher
+            Task { @MainActor in
+                watcher?.keepRecording()
+                completionHandler()
+            }
+            return
+        }
         if response.actionIdentifier == "CANCEL_AUTORECORD" {
             let notifID = response.notification.request.identifier
             if notifID.hasPrefix("meeting-") {
